@@ -5,10 +5,12 @@ import (
 
 	"github.com/alfredoprograma/vzverify/internal/config"
 	"github.com/alfredoprograma/vzverify/internal/observability"
+	"github.com/alfredoprograma/vzverify/internal/services"
 )
 
 func main() {
-	logger := observability.NewLogger("debug")
-	config.NewAWSConfig(context.TODO(), logger)
-
+	env := config.MustLoadEnv()
+	logger := observability.NewLogger(env.LogLevel)
+	awsCfg := config.MustLoadAWSConfig(context.TODO(), logger)
+	services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
 }

@@ -4,7 +4,7 @@ import "github.com/spf13/viper"
 
 type Env struct {
 	LogLevel         string `mapstructure:"LOG_LEVEL"`
-	IdentitiesBucket string `mapstructure:"IDENTITITES_BUCKET"`
+	IdentitiesBucket string `mapstructure:"IDENTITIES_BUCKET"`
 }
 
 func MustLoadEnv() Env {

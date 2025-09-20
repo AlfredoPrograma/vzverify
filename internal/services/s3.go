@@ -12,7 +12,7 @@ import (
 const presignPutObjectErr = "presign put object failed"
 
 type S3Service interface {
-	GeneratePresignedUploadId(ctx context.Context) (string, error)
+	GeneratePresignedUploadId(ctx context.Context) (string, string, error)
 }
 
 type s3Service struct {
@@ -21,18 +21,19 @@ type s3Service struct {
 	logger        *slog.Logger
 }
 
-func (s *s3Service) GeneratePresignedUploadId(ctx context.Context) (string, error) {
+func (s *s3Service) GeneratePresignedUploadId(ctx context.Context) (string, string, error) {
+	key := uuid.NewString()
 	presignedUrl, err := s.presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(uuid.NewString()),
+		Key:    aws.String(key),
 	})
 
 	if err != nil {
 		s.logger.Error(presignPutObjectErr, "error", err)
-		return "", err
+		return "", "", err
 	}
 
-	return presignedUrl.URL, nil
+	return presignedUrl.URL, key, nil
 }
 
 func NewS3Service(bucket string, cfg aws.Config, logger *slog.Logger) S3Service {

@@ -3,8 +3,9 @@ package config
 import "github.com/spf13/viper"
 
 type Env struct {
-	LogLevel         string `mapstructure:"LOG_LEVEL"`
-	IdentitiesBucket string `mapstructure:"IDENTITIES_BUCKET"`
+	LogLevel               string  `mapstructure:"LOG_LEVEL"`
+	IdentitiesBucket       string  `mapstructure:"IDENTITIES_BUCKET"`
+	FaceComparisonTreshold float32 `mapstructure:"FACE_COMPARISON_TRESHOLD"`
 }
 
 func MustLoadEnv() Env {

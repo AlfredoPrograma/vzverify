@@ -16,13 +16,18 @@ func main() {
 	awsCfg := config.MustLoadAWSConfig(context.TODO(), logger)
 	s3Service := services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
 	textractService := services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
+	rekognitionService := services.NewRekognitionService(env.IdentitiesBucket, env.FaceComparisonTreshold, awsCfg, logger)
 
-	url, key, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
+	idUploadUrl, idKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadIdsDir)
+	faceUploadUrl, faceKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
 
-	fmt.Println(url)
-	time.Sleep(time.Second * 6)
+	fmt.Println(idUploadUrl)
+	fmt.Println(faceUploadUrl)
 
-	fields, _ := textractService.ExtractIDContent(context.Background(), key)
+	time.Sleep(time.Second * 10)
+
+	fields, _ := textractService.ExtractIDContent(context.Background(), idKey)
+	rekognitionService.CompareFaces(context.Background(), idKey, faceKey)
 
 	fmt.Printf("%#v", fields)
 }

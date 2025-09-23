@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,8 +12,15 @@ import (
 
 const presignPutObjectErr = "presign put object failed"
 
+type UploadDir string
+
+const (
+	UploadIdsDir   UploadDir = "ids"
+	UploadFacesDir UploadDir = "faces"
+)
+
 type S3Service interface {
-	GeneratePresignedUploadId(ctx context.Context) (string, string, error)
+	GeneratePresignedUpload(ctx context.Context, uploadDir UploadDir) (string, string, error)
 }
 
 type s3Service struct {
@@ -21,11 +29,13 @@ type s3Service struct {
 	logger        *slog.Logger
 }
 
-func (s *s3Service) GeneratePresignedUploadId(ctx context.Context) (string, string, error) {
-	key := uuid.NewString()
+func (s *s3Service) GeneratePresignedUpload(ctx context.Context, uploadDir UploadDir) (string, string, error) {
+	fileId := uuid.NewString()
+	keyPath := fmt.Sprintf("%s/%s", uploadDir, fileId)
+
 	presignedUrl, err := s.presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
+		Key:    aws.String(keyPath),
 	})
 
 	if err != nil {
@@ -33,7 +43,7 @@ func (s *s3Service) GeneratePresignedUploadId(ctx context.Context) (string, stri
 		return "", "", err
 	}
 
-	return presignedUrl.URL, key, nil
+	return presignedUrl.URL, keyPath, nil
 }
 
 func NewS3Service(bucket string, cfg aws.Config, logger *slog.Logger) S3Service {

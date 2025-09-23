@@ -17,7 +17,7 @@ func main() {
 	s3Service := services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
 	textractService := services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
 
-	url, key, _ := s3Service.GeneratePresignedUploadId(context.Background())
+	url, key, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
 
 	fmt.Println(url)
 	time.Sleep(time.Second * 6)

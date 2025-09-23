@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alfredoprograma/vzverify/internal/config"
@@ -16,18 +17,26 @@ func main() {
 	awsCfg := config.MustLoadAWSConfig(context.TODO(), logger)
 	s3Service := services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
 	textractService := services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
-	rekognitionService := services.NewRekognitionService(env.IdentitiesBucket, env.FaceComparisonTreshold, awsCfg, logger)
+	services.NewRekognitionService(env.IdentitiesBucket, env.FaceComparisonTreshold, awsCfg, logger)
+	vzIdService := services.NewVzIdService(env.VZIdApiUrl, env.VZIdApp, env.VZIdToken, logger)
 
 	idUploadUrl, idKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadIdsDir)
-	faceUploadUrl, faceKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
+	// faceUploadUrl, faceKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
 
 	fmt.Println(idUploadUrl)
-	fmt.Println(faceUploadUrl)
-
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 
 	fields, _ := textractService.ExtractIDContent(context.Background(), idKey)
-	rekognitionService.CompareFaces(context.Background(), idKey, faceKey)
 
-	fmt.Printf("%#v", fields)
+	idData := services.IdData{
+		Nationality: "v",
+		IdNumber:    strings.ReplaceAll(fields["v"], ".", ""),
+		Names:       fields["nombres"],
+		LastNames:   fields["apellidos"],
+	}
+
+	success, _ := vzIdService.CompareIdData(context.Background(), idData)
+	fmt.Println("soy arrechisimo: ", success)
+	// rekognitionService.CompareFaces(context.Background(), idKey, faceKey)
+	// fmt.Printf("%#v", fields)
 }

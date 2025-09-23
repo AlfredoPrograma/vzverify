@@ -6,6 +6,9 @@ type Env struct {
 	LogLevel               string  `mapstructure:"LOG_LEVEL"`
 	IdentitiesBucket       string  `mapstructure:"IDENTITIES_BUCKET"`
 	FaceComparisonTreshold float32 `mapstructure:"FACE_COMPARISON_TRESHOLD"`
+	VZIdApiUrl             string  `mapstructure:"VZ_ID_API_URL"`
+	VZIdToken              string  `mapstructure:"VZ_ID_TOKEN"`
+	VZIdApp                string  `mapstructure:"VZ_ID_APP"`
 }
 
 func MustLoadEnv() Env {

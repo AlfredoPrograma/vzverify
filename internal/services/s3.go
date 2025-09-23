@@ -29,7 +29,7 @@ func (s *s3Service) GeneratePresignedUploadId(ctx context.Context) (string, stri
 	})
 
 	if err != nil {
-		s.logger.Error(presignPutObjectErr, "error", err)
+		s.logger.ErrorContext(ctx, presignPutObjectErr, "error", err)
 		return "", "", err
 	}
 

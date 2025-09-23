@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alfredoprograma/vzverify/internal/config"
 	"github.com/alfredoprograma/vzverify/internal/observability"
@@ -14,8 +15,14 @@ func main() {
 	logger := observability.NewLogger(env.LogLevel)
 	awsCfg := config.MustLoadAWSConfig(context.TODO(), logger)
 	s3Service := services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
+	textractService := services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
 
-	url, _, _ := s3Service.GeneratePresignedUploadId(context.Background())
+	url, key, _ := s3Service.GeneratePresignedUploadId(context.Background())
 
 	fmt.Println(url)
+	time.Sleep(time.Second * 6)
+
+	fields, _ := textractService.ExtractIDContent(context.Background(), key)
+
+	fmt.Printf("%#v", fields)
 }

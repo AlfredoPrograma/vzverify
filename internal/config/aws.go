@@ -15,7 +15,7 @@ func MustLoadAWSConfig(ctx context.Context, logger *slog.Logger) aws.Config {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 
 	if err != nil {
-		logger.Error(loadDefaultConfigErr, "error", err)
+		logger.ErrorContext(ctx, loadDefaultConfigErr, "error", err)
 		os.Exit(1)
 	}
 

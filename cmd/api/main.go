@@ -18,12 +18,13 @@ func main() {
 
 	// Initialize services
 	s3Service := services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
-	services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
+	textractService := services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
+	vzIdService := services.NewVzIdService(env.VZIdApiUrl, env.VZIdApp, env.VZIdToken, logger)
 	services.NewRekognitionService(env.IdentitiesBucket, env.FaceComparisonTreshold, awsCfg, logger)
-	services.NewVzIdService(env.VZIdApiUrl, env.VZIdApp, env.VZIdToken, logger)
 
 	// Initialize handlers
 	uploadsHandler := handlers.NewUploadHandler(s3Service)
+	idMatchHandler := handlers.NewIdMatchHandler(textractService, vzIdService)
 
 	// Initialize http listening and routes
 	srv := echo.New()
@@ -32,9 +33,12 @@ func main() {
 	srv.Use(middleware.AddTrailingSlash())
 
 	apiGroup := srv.Group("/api/v1")
-	uploadsGroup := apiGroup.Group("/uploads")
 
+	uploadsGroup := apiGroup.Group("/uploads")
 	uploadsGroup.GET("/:dir", uploadsHandler.GeneratePresignedUpload)
+
+	idMatchGroup := apiGroup.Group("/id-match")
+	idMatchGroup.GET("/:key", idMatchHandler.Compare)
 
 	srv.Logger.Fatal(srv.Start(":8080"))
 

@@ -12,14 +12,22 @@ import (
 
 const docAnalysisErr = "document analysis failed"
 
+type Nationality string
+
+const (
+	VenezuelanNationality Nationality = "v"
+	ForeignNationality    Nationality = "e"
+)
+
 type IdentityFields struct {
-	FirstName  string
-	MiddleName string
-	LastName   string
+	Nationality string
+	IdNumber    string
+	Names       string
+	LastNames   string
 }
 
 type TextractService interface {
-	ExtractIDContent(ctx context.Context, key string) (map[string]string, error)
+	ExtractIDContent(ctx context.Context, key string) (IdentityFields, error)
 }
 
 type textractService struct {
@@ -49,6 +57,10 @@ func (t *textractService) generateBlockMaps(docBlocks []types.Block) (blockMap, 
 	}
 
 	return blocks, keyBlocks, words
+}
+
+func (t *textractService) normalizeIdNumber(idNumber string) string {
+	return strings.ReplaceAll(idNumber, ".", "")
 }
 
 func (t *textractService) findKey(rels []types.Relationship, words wordsMap) string {
@@ -85,6 +97,17 @@ func (t *textractService) findValue(rels []types.Relationship, blocks blockMap, 
 	return strings.Join(word, " ")
 }
 
+// Finds the `v` or `e` key related to the nationality alongside the ID number and extract it because we also need that key as value
+func (t *textractService) findNationality(keyWords wordsMap) string {
+	for key := range keyWords {
+		if strings.EqualFold(key, string(VenezuelanNationality)) || strings.EqualFold(key, string(ForeignNationality)) {
+			return key
+		}
+	}
+
+	return ""
+}
+
 func (t *textractService) findKeysWords(blocks blockMap, keyBlocks blockMap, words wordsMap) wordsMap {
 	keyWords := make(wordsMap, len(keyBlocks))
 
@@ -94,10 +117,13 @@ func (t *textractService) findKeysWords(blocks blockMap, keyBlocks blockMap, wor
 		keyWords[key] = value
 	}
 
+	nationality := t.findNationality(keyWords)
+	keyWords["nationality"] = nationality
+
 	return keyWords
 }
 
-func (t *textractService) ExtractIDContent(ctx context.Context, key string) (map[string]string, error) {
+func (t *textractService) ExtractIDContent(ctx context.Context, key string) (IdentityFields, error) {
 	output, err := t.textractClient.AnalyzeDocument(ctx, &textract.AnalyzeDocumentInput{
 		FeatureTypes: []types.FeatureType{
 			types.FeatureTypeForms,
@@ -112,11 +138,18 @@ func (t *textractService) ExtractIDContent(ctx context.Context, key string) (map
 
 	if err != nil {
 		t.logger.ErrorContext(ctx, docAnalysisErr, "error", err)
-		return nil, err
+		return IdentityFields{}, err
 	}
 
 	blocks, keyBlocks, words := t.generateBlockMaps(output.Blocks)
-	fields := t.findKeysWords(blocks, keyBlocks, words)
+	fieldsMap := t.findKeysWords(blocks, keyBlocks, words)
+
+	fields := IdentityFields{
+		Nationality: strings.ToLower(fieldsMap["nationality"]),
+		IdNumber:    t.normalizeIdNumber(fieldsMap[fieldsMap["nationality"]]),
+		Names:       strings.ToLower(fieldsMap["nombres"]),
+		LastNames:   strings.ToLower(fieldsMap["apellidos"]),
+	}
 
 	return fields, nil
 }

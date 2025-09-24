@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/alfredoprograma/vzverify/internal/config"
@@ -26,14 +25,7 @@ func main() {
 	fmt.Println(idUploadUrl)
 	time.Sleep(time.Second * 5)
 
-	fields, _ := textractService.ExtractIDContent(context.Background(), idKey)
-
-	idData := services.IdData{
-		Nationality: "v",
-		IdNumber:    strings.ReplaceAll(fields["v"], ".", ""),
-		Names:       fields["nombres"],
-		LastNames:   fields["apellidos"],
-	}
+	idData, _ := textractService.ExtractIDContent(context.Background(), idKey)
 
 	success, _ := vzIdService.CompareIdData(context.Background(), idData)
 	fmt.Println("soy arrechisimo: ", success)

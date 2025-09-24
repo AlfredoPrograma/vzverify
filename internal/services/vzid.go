@@ -13,13 +13,6 @@ import (
 const idVerificationRequestErr = "id verification request failed"
 const idMismatchErr = "collected data from id img and from api mismatchs"
 
-type IdData struct {
-	Nationality string
-	Names       string
-	LastNames   string
-	IdNumber    string
-}
-
 type IdDataResponse struct {
 	Nationality    string `json:"nacionalidad"`
 	FirstName      string `json:"primer_nombre"`
@@ -36,7 +29,7 @@ type IdResponse struct {
 }
 
 type VzIdService interface {
-	CompareIdData(ctx context.Context, idData IdData) (bool, error)
+	CompareIdData(ctx context.Context, fields IdentityFields) (bool, error)
 }
 
 type vzIdService struct {
@@ -47,7 +40,7 @@ type vzIdService struct {
 	httpClient *http.Client
 }
 
-func (v *vzIdService) compare(collectedFromImg IdData, collectedFromApi IdDataResponse) bool {
+func (v *vzIdService) compare(collectedFromImg IdentityFields, collectedFromApi IdDataResponse) bool {
 	collectedNames := strings.Join([]string{collectedFromApi.FirstName, collectedFromApi.MiddleName}, " ")
 	collectedLastNames := strings.Join([]string{collectedFromApi.FirstLastName, collectedFromApi.SecondLastName}, " ")
 
@@ -59,7 +52,7 @@ func (v *vzIdService) compare(collectedFromImg IdData, collectedFromApi IdDataRe
 	return hasSameNames && hasSameLastNames && hasSameId && hasSameNationality
 }
 
-func (v *vzIdService) CompareIdData(ctx context.Context, idData IdData) (bool, error) {
+func (v *vzIdService) CompareIdData(ctx context.Context, fields IdentityFields) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.apiUrl, nil)
 
 	if err != nil {
@@ -70,8 +63,8 @@ func (v *vzIdService) CompareIdData(ctx context.Context, idData IdData) (bool, e
 	qs := req.URL.Query()
 	qs.Add("app_id", v.appId)
 	qs.Add("token", v.apiToken)
-	qs.Add("nacionalidad", idData.Nationality)
-	qs.Add("cedula", idData.IdNumber)
+	qs.Add("nacionalidad", fields.Nationality)
+	qs.Add("cedula", fields.IdNumber)
 	req.URL.RawQuery = qs.Encode()
 
 	resp, err := v.httpClient.Do(req)
@@ -81,22 +74,22 @@ func (v *vzIdService) CompareIdData(ctx context.Context, idData IdData) (bool, e
 		return false, err
 	}
 
-	var data IdResponse
+	var respBody IdResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
 		v.logger.Error("cannot decode response body", "error", err)
 		return false, err
 	}
 
-	if data.Error {
-		v.logger.Error(idVerificationRequestErr, "error", data.ErrorStr)
+	if respBody.Error {
+		v.logger.Error(idVerificationRequestErr, "error", respBody.ErrorStr)
 		return false, errors.New(idVerificationRequestErr)
 	}
 
-	areSame := v.compare(idData, data.Data)
+	areSame := v.compare(fields, respBody.Data)
 
 	if !areSame {
-		v.logger.Error(idMismatchErr, "error", idMismatchErr, "dataFromImg", idData, "dataFromApi", data)
+		v.logger.Error(idMismatchErr, "error", idMismatchErr, "dataFromImg", fields, "dataFromApi", respBody)
 		return false, nil
 	}
 

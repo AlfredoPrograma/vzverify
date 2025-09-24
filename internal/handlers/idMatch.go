@@ -12,14 +12,16 @@ type IdMatchHandler interface {
 }
 
 type idMatchHandler struct {
-	textractService services.TextractService
-	vzIdService     services.VzIdService
+	rekognitionService services.RekognitionService
+	textractService    services.TextractService
+	vzIdService        services.VzIdService
 }
 
 func (i *idMatchHandler) Compare(c echo.Context) error {
-	key := c.Param("key")
+	idKey := c.QueryParam("idKey")
+	faceKey := c.QueryParam("faceKey")
 
-	identityFields, err := i.textractService.ExtractIDContent(c.Request().Context(), key)
+	identityFields, err := i.textractService.ExtractIDContent(c.Request().Context(), idKey)
 
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -31,14 +33,17 @@ func (i *idMatchHandler) Compare(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
+	i.rekognitionService.CompareFaces(c.Request().Context(), idKey, faceKey)
+
 	return c.JSON(http.StatusOK, echo.Map{
 		"matches": matches,
 	})
 }
 
-func NewIdMatchHandler(textractService services.TextractService, vzIdService services.VzIdService) IdMatchHandler {
+func NewIdMatchHandler(textractService services.TextractService, rekognitionService services.RekognitionService, vzIdService services.VzIdService) IdMatchHandler {
 	return &idMatchHandler{
-		textractService: textractService,
-		vzIdService:     vzIdService,
+		rekognitionService: rekognitionService,
+		textractService:    textractService,
+		vzIdService:        vzIdService,
 	}
 }

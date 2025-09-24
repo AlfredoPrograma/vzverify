@@ -2,33 +2,51 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/alfredoprograma/vzverify/internal/config"
+	"github.com/alfredoprograma/vzverify/internal/handlers"
 	"github.com/alfredoprograma/vzverify/internal/observability"
 	"github.com/alfredoprograma/vzverify/internal/services"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
 	env := config.MustLoadEnv()
 	logger := observability.NewLogger(env.LogLevel)
-	awsCfg := config.MustLoadAWSConfig(context.TODO(), logger)
+	awsCfg := config.MustLoadAWSConfig(context.Background(), logger)
+
+	// Initialize services
 	s3Service := services.NewS3Service(env.IdentitiesBucket, awsCfg, logger)
-	textractService := services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
+	services.NewTextractService(env.IdentitiesBucket, awsCfg, logger)
 	services.NewRekognitionService(env.IdentitiesBucket, env.FaceComparisonTreshold, awsCfg, logger)
-	vzIdService := services.NewVzIdService(env.VZIdApiUrl, env.VZIdApp, env.VZIdToken, logger)
+	services.NewVzIdService(env.VZIdApiUrl, env.VZIdApp, env.VZIdToken, logger)
 
-	idUploadUrl, idKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadIdsDir)
-	// faceUploadUrl, faceKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
+	// Initialize handlers
+	uploadsHandler := handlers.NewUploadHandler(s3Service)
 
-	fmt.Println(idUploadUrl)
-	time.Sleep(time.Second * 5)
+	// Initialize http listening and routes
+	srv := echo.New()
 
-	idData, _ := textractService.ExtractIDContent(context.Background(), idKey)
+	srv.Use(middleware.Logger())
+	srv.Use(middleware.AddTrailingSlash())
 
-	success, _ := vzIdService.CompareIdData(context.Background(), idData)
-	fmt.Println("soy arrechisimo: ", success)
-	// rekognitionService.CompareFaces(context.Background(), idKey, faceKey)
+	apiGroup := srv.Group("/api/v1")
+	uploadsGroup := apiGroup.Group("/uploads")
+
+	uploadsGroup.GET("/:dir", uploadsHandler.GeneratePresignedUpload)
+
+	srv.Logger.Fatal(srv.Start(":8080"))
+
+	/* 	idUploadUrl, idKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadIdsDir)
+	   	faceUploadUrl, faceKey, _ := s3Service.GeneratePresignedUpload(context.Background(), services.UploadFacesDir)
+
+	   	fmt.Println(idUploadUrl)
+	   	time.Sleep(time.Second * 5)
+
+	   	idData, _ := textractService.ExtractIDContent(context.Background(), idKey)
+	   	success, _ := vzIdService.CompareIdData(context.Background(), idData)
+
+	   	rekognitionService.CompareFaces(context.Background(), idKey, faceKey) */
 	// fmt.Printf("%#v", fields)
 }

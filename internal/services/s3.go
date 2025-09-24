@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -10,9 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const invalidUploadDirErr = "invalid upload dir"
 const presignPutObjectErr = "presign put object failed"
 
 type UploadDir string
+
+func (u UploadDir) Validate() error {
+	switch u {
+	case UploadIdsDir, UploadFacesDir:
+		return nil
+	default:
+		return errors.New(invalidUploadDirErr)
+	}
+}
 
 const (
 	UploadIdsDir   UploadDir = "ids"

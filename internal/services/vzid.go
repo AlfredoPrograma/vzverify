@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-const idVerificationRequestErr = "id verification request failed"
-const idMismatchErr = "collected data from id img and from api mismatchs"
+const idDataVerificationReqErr = "id verification request failed"
 
 type IdDataResponse struct {
 	Nationality    string `json:"nacionalidad"`
@@ -56,7 +55,7 @@ func (v *vzIdService) CompareIdData(ctx context.Context, fields IdentityFields) 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.apiUrl, nil)
 
 	if err != nil {
-		v.logger.Debug("cannot build request", "error", err)
+		v.logger.DebugContext(ctx, "cannot build request", "error", err, "request", req)
 		return false, err
 	}
 
@@ -70,30 +69,29 @@ func (v *vzIdService) CompareIdData(ctx context.Context, fields IdentityFields) 
 	resp, err := v.httpClient.Do(req)
 
 	if err != nil {
-		v.logger.Error("cannot request id data", "error", err)
+		v.logger.ErrorContext(ctx, "cannot request id data", "error", err)
 		return false, err
 	}
 
 	var respBody IdResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		v.logger.Error("cannot decode response body", "error", err)
+		v.logger.ErrorContext(ctx, "cannot decode response body", "error", err)
 		return false, err
 	}
 
 	if respBody.Error {
-		v.logger.Error(idVerificationRequestErr, "error", respBody.ErrorStr)
-		return false, errors.New(idVerificationRequestErr)
+		v.logger.ErrorContext(ctx, idDataVerificationReqErr, "error", respBody.ErrorStr)
+		return false, errors.New(idDataVerificationReqErr)
 	}
 
-	areSame := v.compare(fields, respBody.Data)
+	matches := v.compare(fields, respBody.Data)
 
-	if !areSame {
-		v.logger.Error(idMismatchErr, "error", idMismatchErr, "dataFromImg", fields, "dataFromApi", respBody)
-		return false, nil
+	if !matches {
+		v.logger.InfoContext(ctx, "collected data from id img and from api mismatches", "dataFromImg", fields, "dataFromApi", respBody)
 	}
 
-	return true, nil
+	return matches, nil
 }
 
 func NewVzIdService(apiUrl string, appId string, apiToken string, logger *slog.Logger) VzIdService {

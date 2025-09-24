@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rekognition/types"
 )
 
-const faceComparingErr = "face comparison failed"
+const faceComparisonServiceErr = "face comparison service failed"
 const mismatchingFacesErr = "faces don't match"
 
 type RekognitionService interface {
@@ -41,15 +40,20 @@ func (r *rekognitionService) CompareFaces(ctx context.Context, idSrc string, fac
 	})
 
 	if err != nil {
-		r.logger.Error(faceComparingErr, "error", err)
+		r.logger.ErrorContext(ctx, faceComparisonServiceErr, "error", err)
 		return false, err
 	}
 
-	compared := len(output.FaceMatches) > 0
+	if output == nil || len(output.FaceMatches) == 0 {
+		r.logger.InfoContext(ctx, "images don't contain faces or faces are completely different")
+		return false, nil
+	}
 
-	if !compared || aws.ToFloat32(output.FaceMatches[0].Similarity) < r.faceComparisonTreshold {
-		r.logger.Error(mismatchingFacesErr, "error", faceComparingErr)
-		return false, errors.New(mismatchingFacesErr)
+	facesSimilarity := aws.ToFloat32(output.FaceMatches[0].Similarity)
+
+	if facesSimilarity < r.faceComparisonTreshold {
+		r.logger.InfoContext(ctx, "faces don't match enough", "facesSimilarity", facesSimilarity)
+		return false, nil
 	}
 
 	return true, nil
